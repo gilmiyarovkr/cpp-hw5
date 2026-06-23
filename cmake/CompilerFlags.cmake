@@ -8,7 +8,7 @@ add_library(compiler_flags INTERFACE)
 
 # Настройки стандарта C++ прописываем прямо в интерфейс,
 # чтобы они автоматически наследовались всеми, кто линкуется с compiler_flags
-target_compile_features(compiler_flags INTERFACE cxx_std_17)
+target_compile_features(compiler_flags INTERFACE cxx_std_20)
 
 if (MSVC)
     target_compile_options(compiler_flags INTERFACE 
