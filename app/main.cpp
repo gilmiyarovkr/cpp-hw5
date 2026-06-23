@@ -40,7 +40,7 @@ struct Point
 class Line : public IPrimitive
 {
 public:
-    Point start, end;
+    Point start{0.0, 0.0}, end{0.0, 0.0};
 
     void Draw() const override
     {
@@ -56,8 +56,8 @@ public:
 class Circle : public IPrimitive
 {
 public:
-    Point center;
-    double radius;
+    Point center{0.0, 0.0};
+    double radius{0.0};
 
     void Draw() const override
     {
@@ -70,7 +70,7 @@ public:
     }
 };
 
-// TODO Сцена которая будет включать в себя графические примитивы
+//----------------------------------------------------------------------------------------
 class SceneModel
 {
 private:
@@ -97,13 +97,18 @@ public:
 
 //----------------------------------------------------------------------------------------
 template <typename DataType>
-class IDocIO : public IPrimitiveVisitor
+class IDocIO
 {
 public:
-    virtual ~IDocIO() override = default;
-
+    virtual ~IDocIO() = default;
     virtual std::optional<DataType> Load(const std::string& file) = 0; // Загрузить
     virtual bool Save(const std::string& file, const DataType& data) = 0; // Сохранить
+};
+
+class JsonSerializer : public IPrimitiveVisitor {
+public:
+    void Visit(const Line& line) override { std::cout << "  JSON Line: " << line.GetID() << "\n"; }
+    void Visit(const Circle& circle) override { std::cout << "  JSON Circle: " << circle.GetID() << "\n"; }
 };
 
 class JsonDoc : public IDocIO<SceneModel>
@@ -120,16 +125,6 @@ public:
     {
         // TODO Сохранение сцены в файл
         return true;
-    }
-
-    void Visit(const Line& /*line*/) override
-    {
-        // TODO Сохранение в файл линии
-    }
-
-    void Visit(const Circle& /*circle*/) override
-    {
-        // TODO Сохранение в файл круга
     }
 };
 
