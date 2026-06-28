@@ -1,150 +1,122 @@
 #pragma once
 
 #include <iostream>
-#include <type_traits>
-#include <list>
-#include <vector>
+#include <string>
 #include <tuple>
-
-/**
- * @file
- * @brief Набор шаблонов функций print_ip для вывода IP-адресов из различных типов данных.
- */
-
-/**
- * @brief Шаблонный тип для проверки, является ли тип строкой.
- * @details Базовый шаблон определяет, что тип не является строкой.
- * @tparam T Проверяемый тип.
- */
-template <typename T>
-struct is_string : std::false_type{};
-
-/**
- * @brief Шаблонный тип для проверки, является ли тип итерируемым (контейнером).
- * @details Базовый шаблон использует SFINAE с std::void_t.
- * @tparam T Проверяемый тип.
- */
-template <typename T, typename = void>
-struct is_iterable : std::false_type {};
-
-/**
- * @brief Шаблонный тип для проверки, является ли тип std::tuple с одинаковыми типами элементов.
- * @details Базовый шаблон определяет, что тип не является кортежем.
- * @tparam T Проверяемый тип.
- */
-template <typename T>
-struct is_tuple : std::false_type {};
-
-/**
- * @brief Частичная специализация is_string для std::basic_string.
- */
-template <typename CharT, typename Traits, typename Allocator>
-struct is_string<std::basic_string<CharT, Traits, Allocator>> :std::true_type{};
-
-/**
- * @brief Частичная специализация is_iterable для типов, поддерживающих std::begin и std::end.
- */
-template <typename T>
-struct is_iterable<T, std::void_t<
-                          decltype(std::begin(std::declval<T>())),
-                          decltype(std::end(std::declval<T>()))
-                          >> : std::true_type {};
-
-/**
- * @brief Полная специализация is_tuple для пустого кортежа std::tuple<>.
- */
-template <>
-struct is_tuple<std::tuple<>> : std::true_type {};
-
-/**
- * @brief Частичная специализация is_tuple для непустого кортежа.
- * @details Проверяет, что все элементы кортежа имеют строго одинаковый тип.
- * @tparam First Тип первого элемента кортежа.
- * @tparam Args Типы остальных элементов кортежа.
- */
-template <typename First, typename... Args>
-struct is_tuple<std::tuple<First, Args...>> {
-    /** Флаг, истинный только если типы всех элементов совпадают. */
-    static constexpr bool value = (std::is_same_v<First, Args> && ...);
-};
-
-/**
- * @brief Выводит IP-адрес, представленный целочисленным типом.
- * @details Разбивает число на байты и выводит их через точку в порядке Big-Endian
- *          (старшие байты первыми, адаптировано под Little-Endian архитектуру). Исключает тип bool.
- * @tparam T Целочисленный тип (int, char, short, long long и т.д.).
- * @param value Значение IP-адреса.
- */
-template <typename T>
-std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<T, bool>, void>
-print_ip(const T& value) {
-    const auto* bytePtr = reinterpret_cast<const unsigned char*>(&value);
-    constexpr size_t numBytes = sizeof(T);
-
-    for (size_t i = 0; i < numBytes; ++i) {
-        size_t index = numBytes - 1 - i;
-
-        std::cout << static_cast<unsigned int>(bytePtr[index]);
-
-        if (i < numBytes - 1) {
-            std::cout << ".";
-        }
-    }
-    std::cout << std::endl;
-}
+#include <concepts>
 
 /**
  * @brief Выводит IP-адрес, представленный в виде строки.
- * @details Выводит строку в стандартный поток вывода «как есть».
- * @tparam T Тип строки (std::string).
- * @param target Строковое представление IP-адреса.
+ * @param[in] ip Строка, содержащая IP-адрес.
  */
-template <typename T>
-std::enable_if_t<is_string<T>::value, void>
-print_ip(const T& target) {
-    std::cout << target << std::endl;
+void print_ip(const std::string& ip)
+{
+    std::cout << ip << std::endl;
 }
 
 /**
- * @brief Выводит IP-адрес, представленный в виде контейнера (vector, list и др.).
- * @details Итерируется по элементам контейнера, выводя их через точку.
- *          Использует унарный плюс для корректного вывода символьных типов как чисел.
- * @tparam T Тип контейнера.
- * @param ltarget Контейнер с байтами IP-адреса.
+ * @brief Шаблонная функция для вывода IP-адреса, представленного целочисленным типом.
+ * @details Выводит адрес побайтово, начиная со старшего байта к младшему.
+ * @tparam T Целочисленный тип (должен удовлетворять концепту std::integral).
+ * @param[in] ip Числовое представление IP-адреса.
  */
-template <typename T>
-std::enable_if_t<is_iterable<T>::value && !is_string<T>::value, void>
-print_ip(const T& ltarget) {
-    for(auto l = ltarget.begin(); l != ltarget.end(); ++l){
-        std::cout << +(*l);
-        if(std::next(l) != ltarget.end())
+template <std::integral T>
+void print_ip(T ip)
+{
+    for (int i = sizeof(T) - 1; i >= 0; --i)
+    {
+        std::cout << ((ip >> (i * 8)) & 0xFF);
+        if (i > 0)
             std::cout << ".";
     }
     std::cout << std::endl;
 }
 
 /**
- * @brief Вспомогательная функция для раскрытия элементов std::tuple.
- * @details Использует свёртку параметров (fold expression) и std::index_sequence для обхода кортежа.
- * @tparam TupleT Тип кортежа.
- * @tparam Is Сгенерированные индексы элементов.
- * @param tp Ссылка на кортеж.
+ * @brief Концепт для проверки, является ли тип стандартным контейнером.
+ * @details Проверяет наличие вложенного типа value_type, а также методов begin() и end().
+ * Исключает тип std::string из рассмотрения.
+ * @tparam T Проверяемый тип.
  */
-template <typename TupleT, std::size_t... Is>
-void print_ip_tuple_impl(const TupleT& tp, std::index_sequence<Is...>) {
-    ( (void)(Is > 0 ? (std::cout << ".", std::cout << std::get<Is>(tp))
-                    : (std::cout << std::get<Is>(tp))), ... );
+template <typename T>
+concept IsContainer = requires(T container)
+{
+    typename T::value_type;
+    container.begin();
+    container.end();
+} && !std::same_as<T, std::string>;
+
+/**
+ * @brief Шаблонная функция для вывода IP-адреса, сохраненного в контейнере.
+ * @tparam T Тип контейнера, удовлетворяющий концепту IsContainer.
+ * @param[in] container Контейнер с элементами IP-адреса.
+ */
+template <IsContainer T>
+void print_ip(const T& container)
+{
+    bool first = true;
+    for (const auto& bytes : container)
+    {
+        if (!first)
+            std::cout << ".";
+        std::cout << +bytes;
+        first = false;
+    }
     std::cout << std::endl;
 }
 
 /**
- * @brief Выводит IP-адрес, представленный в виде std::tuple.
- * @details Вызывает функцию вывода только в том случае, если все элементы кортежа однородны.
- * @tparam T Тип кортежа.
- * @param target Кортеж с компонентами IP-адреса.
+ * @brief Вспомогательная функция для поочередного вывода элементов кортежа.
+ * @tparam Tuple Тип кортежа.
+ * @tparam Is Последовательность индексов для развертывания кортежа.
+ * @param[in] t Ссылка на кортеж.
+ */
+template <typename Tuple, std::size_t... Is>
+void print_tuple_ip(const Tuple& t, std::index_sequence<Is...>)
+{
+    bool first = true;
+    auto print_elem = [&](const auto& x)
+    {
+        if (!first)
+            std::cout << ".";
+        std::cout << +x;
+        first = false;
+    };
+    (print_elem(std::get<Is>(t)), ...);
+    std::cout << std::endl;
+}
+
+/**
+ * @brief Вспомогательный концепт для проверки однородности пакета параметров.
+ * @tparam T Базовый тип, с которым сравниваются остальные.
+ * @tparam Args Пакет типов для сравнения.
+ */
+template <typename T, typename... Args>
+concept AllSameAs = (std::same_as<T, Args> && ...);
+
+/**
+ * @brief Концепт для проверки валидности кортежа в качестве IP-адреса.
+ * @details Проверяет, что тип является std::tuple и все его элементы имеют абсолютно одинаковый тип.
+ * @tparam T Проверяемый тип.
  */
 template <typename T>
-std::enable_if_t<is_tuple<T>::value, void>
-print_ip(const T& target) {
-    print_ip_tuple_impl(target, std::make_index_sequence<std::tuple_size_v<T>>{});
+concept ValidTuple = requires
+{
+    typename std::tuple_size<T>::type;
+} && []<std::size_t... Is>(std::index_sequence<Is...>)
+{
+    return AllSameAs<typename std::tuple_element<0, T>::type, typename std::tuple_element<Is, T>::type...>;
+}(std::make_index_sequence<std::tuple_size_v<T>>{});
+
+/**
+ * @brief Шаблонная функция для вывода IP-адреса, представленного в виде кортежа (std::tuple).
+ * @details Функция доступна только если кортеж не пустой и содержит строго одинаковые типы элементов.
+ * @tparam Args Типы элементов кортежа.
+ * @param[in] t Кортеж, содержащий элементы IP-адреса.
+ */
+template <typename... Args>
+    requires ValidTuple<std::tuple<Args...>>
+void print_ip(const std::tuple<Args...>& t)
+{
+    print_tuple_ip(t, std::make_index_sequence<sizeof...(Args)>{});
 }

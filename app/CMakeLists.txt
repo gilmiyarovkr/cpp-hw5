@@ -3,7 +3,7 @@ add_executable(${PROJECT_NAME}
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
-    mvc_editor_lib compiler_flags
+    mvc_editor_lib print_ip_lib compiler_flags
 )
 
 # Include module for GNU standard installation directories
